@@ -1,0 +1,40 @@
+import torch
+from diffusers import StableDiffusionPipeline
+import gradio as gr
+import random
+
+# Initialize the Stable Diffusion Pipeline
+model_id = "stable-diffusion-v1-5/stable-diffusion-v1-5"
+pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
+pipe = pipe.to("cuda")
+
+def generate_ai_image(prompt, steps, guidance_scale, seed):
+    if seed == -1:
+        seed = random.randint(0, 1000000)
+    generator = torch.Generator("cuda").manual_seed(seed)
+    
+    output = pipe(
+        prompt=prompt,
+        num_inference_steps=int(steps),
+        guidance_scale=float(guidance_scale),
+        generator=generator
+    )
+    return output.images[0], f"Seed used: {seed}"
+
+# Build UI
+with gr.Blocks(title="AI Image Generator") as demo:
+    gr.Markdown("# 🎨 Minor Project: AI Image Generator")
+    with gr.Row():
+        with gr.Column():
+            user_prompt = gr.Textbox(label="Text Prompt Inputs", lines=3)
+            steps_slider = gr.Slider(minimum=10, maximum=50, value=30, step=1, label="Inference Steps")
+            guidance_slider = gr.Slider(minimum=1.0, maximum=20.0, value=7.5, step=0.5, label="Guidance Scale")
+            seed_input = gr.Number(value=-1, label="Seed (-1 for random)", precision=0)
+            generate_btn = gr.Button("Generate Image ✨", variant="primary")
+        with gr.Column():
+            output_image = gr.Image(label="Generated Output")
+            metadata_output = gr.Textbox(label="Metadata", interactive=False)
+            
+    generate_btn.click(fn=generate_ai_image, inputs=[user_prompt, steps_slider, guidance_slider, seed_input], outputs=[output_image, metadata_output])
+
+demo.launch(share=True)
